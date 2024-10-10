@@ -10,3 +10,6 @@ class FinancialAnalyzer:
         yearly_expenses = self.data.loc[self.data['Expense/Income'] == 'Expense'].groupby('Year')['Amount()'].sum().mean()
         
         top_expenses = self.data.loc[self.data['Expense/Income'] == 'Expense'].groupby('Category')['Amount()'].sum().sort_values(ascending=False)
+        
+        monthly_income = self.data.loc[self.data['Expense/Income'] == 'Income'].groupby(self.data['Date'].dt.to_period('M'))['Amount()'].sum().mean()
+        monthly_expenses = self.data.loc[self.data['Expense/Income'] == 'Expense'].groupby(self.data['Date'].dt.to_period('M'))['Amount()'].sum().mean()
