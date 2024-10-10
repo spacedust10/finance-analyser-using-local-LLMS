@@ -19,3 +19,12 @@ class FinancialAnalyzer:
         
         savings_monthly = yearly_income - yearly_expenses
         savings_rate_monthly = (savings_monthly / yearly_income) * 100 if monthly_income > 0 else 0
+        
+        key_figures['Average Annual Income'] = f"${yearly_income:,.2f}"
+        key_figures['Average Annual Expenses'] = f"${yearly_expenses:,.2f}"
+        key_figures['Annual Savings Rate'] = f"{savings_rate_yearly:.2f}%"
+        key_figures['Annual Savings Rate'] = f"{savings_rate_monthly:.2f}%"
+        key_figures['Top Expense Categories'] = {category: f"${amount:,.2f}" for category, amount in top_expenses.head().items()}
+        key_figures['Average Monthly Income'] = f"${monthly_income:,.2f}"
+        key_figures['Average Monthly Expenses'] = f"${monthly_expenses:,.2f}"
+        return key_figures
