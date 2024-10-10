@@ -21,3 +21,9 @@ class TransactionCategorizer:
         for i in range(start, stop, step):
             yield i
         yield stop
+
+    def categorize_transactions(self, transaction_names):
+        prompt = f"""Add an appropriate category to the following expenses.
+            Remember The category should only be one of the following and choose only one category from the list that is most relevant based on their primary purpose or nature: {self.categories_string}.\n  
+            The output format should always be : transaction name - category. For example: Spotify #2 - Entertainment, Basic Fit Amsterdam Nld #3 - Fitness/Sports \n 
+            Here are the Transactions to be categorized: {transaction_names} \n"""
