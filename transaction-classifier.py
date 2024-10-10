@@ -44,3 +44,11 @@ class TransactionCategorizer:
     def process_data(self, df: pd.DataFrame, filename: str):
         unique_transactions = df["Name/Description"].unique()
         index_list = list(self.hop(0, len(unique_transactions), 30))
+        
+        categories_df_all = pd.DataFrame()
+
+        for i in range(0, len(index_list) - 1):
+            transaction_names = unique_transactions[index_list[i]: index_list[i + 1]]
+            transaction_names = ",".join(transaction_names)
+            categories_df = self.categorize_transactions(transaction_names)
+            categories_df_all = pd.concat([categories_df_all, categories_df], ignore_index=True)
