@@ -27,3 +27,16 @@ class TransactionCategorizer:
             Remember The category should only be one of the following and choose only one category from the list that is most relevant based on their primary purpose or nature: {self.categories_string}.\n  
             The output format should always be : transaction name - category. For example: Spotify #2 - Entertainment, Basic Fit Amsterdam Nld #3 - Fitness/Sports \n 
             Here are the Transactions to be categorized: {transaction_names} \n"""
+            
+        filtered_response = []
+        
+        # Retry if the LLM output is not consistent
+        while len(filtered_response) < 2:
+            response = self.llm.invoke(prompt).split("\n")
+            filtered_response = [item for item in response if '-' in item]
+
+        categories_df = pd.DataFrame({"Transaction vs category": filtered_response})
+        size_dif = len(categories_df) - len(transaction_names.split(","))
+        categories_df["Transaction"] = transaction_names.split(",") + [None] * size_dif if size_dif >= 0 else transaction_names.split(",")[:len(categories_df)]
+        categories_df["Category"] = categories_df["Transaction vs category"].str.split("-", expand=True)[1]
+        return categories_df
