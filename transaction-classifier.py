@@ -52,3 +52,12 @@ class TransactionCategorizer:
             transaction_names = ",".join(transaction_names)
             categories_df = self.categorize_transactions(transaction_names)
             categories_df_all = pd.concat([categories_df_all, categories_df], ignore_index=True)
+        
+        # Data cleaning
+        categories_df_all = categories_df_all.dropna()
+        categories_df_all["Transaction"] = categories_df_all["Transaction"].str.replace(r"\d+\.\s?", "", regex=True).str.strip()
+
+        new_df = pd.merge(df, categories_df_all, left_on="Name/Description", right_on="Transaction", how="left")
+        save_path = f"{filename}_categorized.csv"
+        new_df.to_csv(save_path, index=False)
+        return new_df, save_path
