@@ -8,3 +8,5 @@ class FinancialAnalyzer:
         key_figures = {}
         yearly_income = self.data.loc[self.data['Expense/Income'] == 'Income'].groupby('Year')['Amount()'].sum().mean()
         yearly_expenses = self.data.loc[self.data['Expense/Income'] == 'Expense'].groupby('Year')['Amount()'].sum().mean()
+        
+        top_expenses = self.data.loc[self.data['Expense/Income'] == 'Expense'].groupby('Category')['Amount()'].sum().sort_values(ascending=False)
