@@ -1,5 +1,6 @@
 from langchain_community.llms import Ollama
 import pandas as pd
+import os
 
 class TransactionCategorizer:
     def __init__(self):
@@ -64,6 +65,12 @@ class TransactionCategorizer:
         new_df["YearMonth"] = new_df["Date"].dt.to_period("M")
         new_df["Year"] = new_df["Date"].dt.year
         
-        save_path = f"{filename}_categorized.csv"
+        processed_dir = "processed_files"
+        
+        if not os.path.exists(processed_dir):
+            os.makedirs(processed_dir)
+        
+        save_path = os.path.join(processed_dir, f"{filename}_categorized.csv")
         new_df.to_csv(save_path, index=False)
+        
         return new_df, save_path
