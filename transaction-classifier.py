@@ -16,3 +16,8 @@ class TransactionCategorizer:
             "Tech/Gadgets", "Fitness/Sports"
         ]
         self.categories_string = ",".join(self.categories)
+    
+    def hop(self, start, stop, step):
+        for i in range(start, stop, step):
+            yield i
+        yield stop
