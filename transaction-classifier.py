@@ -58,6 +58,12 @@ class TransactionCategorizer:
         categories_df_all["Transaction"] = categories_df_all["Transaction"].str.replace(r"\d+\.\s?", "", regex=True).str.strip()
 
         new_df = pd.merge(df, categories_df_all, left_on="Name/Description", right_on="Transaction", how="left")
+        
+        # Convert date columns for further analysis
+        new_df["Date"] = pd.to_datetime(new_df["Date"])
+        new_df["YearMonth"] = new_df["Date"].dt.to_period("M")
+        new_df["Year"] = new_df["Date"].dt.year
+        
         save_path = f"{filename}_categorized.csv"
         new_df.to_csv(save_path, index=False)
         return new_df, save_path
