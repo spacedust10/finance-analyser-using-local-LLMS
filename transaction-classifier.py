@@ -40,3 +40,7 @@ class TransactionCategorizer:
         categories_df["Transaction"] = transaction_names.split(",") + [None] * size_dif if size_dif >= 0 else transaction_names.split(",")[:len(categories_df)]
         categories_df["Category"] = categories_df["Transaction vs category"].str.split("-", expand=True)[1]
         return categories_df
+    
+    def process_data(self, df: pd.DataFrame, filename: str):
+        unique_transactions = df["Name/Description"].unique()
+        index_list = list(self.hop(0, len(unique_transactions), 30))
