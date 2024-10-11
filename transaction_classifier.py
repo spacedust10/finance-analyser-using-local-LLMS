@@ -54,23 +54,17 @@ class TransactionCategorizer:
             categories_df = self.categorize_transactions(transaction_names)
             categories_df_all = pd.concat([categories_df_all, categories_df], ignore_index=True)
         
-        # Data cleaning
         categories_df_all = categories_df_all.dropna()
         categories_df_all["Transaction"] = categories_df_all["Transaction"].str.replace(r"\d+\.\s?", "", regex=True).str.strip()
 
         new_df = pd.merge(df, categories_df_all, left_on="Name/Description", right_on="Transaction", how="left")
-        
-        # Convert date columns for further analysis
-        new_df["Date"] = pd.to_datetime(new_df["Date"])
-        new_df["YearMonth"] = new_df["Date"].dt.to_period("M")
-        new_df["Year"] = new_df["Date"].dt.year
         
         processed_dir = "processed_files"
         
         if not os.path.exists(processed_dir):
             os.makedirs(processed_dir)
         
-        save_path = os.path.join(processed_dir, f"{filename}_categorized.csv")
+        save_path = os.path.join(processed_dir, f"{filename.split('.')[0]}_categorized.csv")
         new_df.to_csv(save_path, index=False)
         
         return new_df, save_path
