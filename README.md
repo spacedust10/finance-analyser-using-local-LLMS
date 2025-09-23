@@ -3,6 +3,9 @@
 
 This finance analyzer project is an on-device, data-driven tool designed to analyze personal financial data. Users can upload financial statements in CSV format, which are processed and categorized using open-source models from Ollama’s Llama3.1. The project ensures privacy by keeping all analysis and computations on-device. It provides detailed insights into income, expenses, saving rates, and spending patterns through interactive visualizations like pie charts, bar charts, and line graphs. Built with Streamlit, the tool offers a user-friendly interface and generates customized financial reports without relying on external cloud services.
 
+# An Overview
+![ABSTRACT](https://github.com/user-attachments/assets/b0aee355-cf7f-434b-81d8-5be93d34e5e7 "Flow")
+---
 ## Project Breakdown
 ### 1. File Upload & Data Processing
 - Users upload financial statements in CSV format.
