@@ -39,3 +39,33 @@ class TransactionClassificationService:
             f"Transactions:\n{numbered}"
         )
         return self._parse_response(self.llm.invoke(prompt), len(batch))
+
+    def _parse_response(self, response: str, n: int) -> List[str]:
+        """Map numbered LLM lines back to positions by index, so hyphens or
+        commas in transaction names can't misalign results. Unmatched or
+        hallucinated categories become 'Uncategorized'."""
+        out = ["Uncategorized"] * n
+        for line in response.splitlines():
+            m = re.match(r'\s*(\d+)\s*[.):\-]\s*(.+)', line)
+            if not m:
+                continue
+            idx = int(m.group(1)) - 1
+            if not 0 <= idx < n:
+                continue
+            key = m.group(2).strip().strip('*').strip().lower()
+            if key in self._canon:
+                out[idx] = self._canon[key]
+            else:
+                # line may echo the transaction name ("Starbucks - Dining Out")
+                for cat in self.categories:
+                    if cat.lower() in key:
+                        out[idx] = cat
+                        break
+        return out
+
+    def process_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
+        unique = df['Name/Description'].unique().tolist()
+        categories = self.classify_transactions(unique)
+        mapping = dict(zip(unique, categories))
+        df['Category'] = df['Name/Description'].map(mapping).fillna("Uncategorized")
+        return df
