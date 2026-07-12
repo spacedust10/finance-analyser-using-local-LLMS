@@ -182,3 +182,14 @@ class FinanceVisualizer:
                     textposition="outside")
         fig.update_layout(yaxis_title="Δ spending ($)", showlegend=False)
         return fig
+
+    def recurring_bar(self, recurring: pd.DataFrame):
+        if recurring.empty:
+            return None
+        rec = recurring.sort_values('Annualized')
+        fig = self._fig("Recurring charges, annualized", height=max(320, 36 * len(rec)))
+        fig.add_bar(x=rec['Annualized'], y=rec['Merchant'], orientation='h',
+                    marker_color=self.c["rose"],
+                    text=[f"${v:,.0f}/yr" for v in rec['Annualized']], textposition="outside")
+        fig.update_layout(xaxis_title="Cost per year ($)", showlegend=False)
+        return fig
