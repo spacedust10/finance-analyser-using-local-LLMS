@@ -224,3 +224,77 @@ def test_chunker_short_text_single_chunk():
     assert len(chunks) == 1 and chunks[0]["chunk"] == 1
 
 # ── ollama service ───────────────────────────────────────────────────────
+
+def test_chat_models_filters_embedders():
+    models = ["llama3.1:latest", "nomic-embed-text:latest"]
+    assert ollama_service.chat_models(models) == ["llama3.1:latest"]
+    # all-embedding list falls back to everything rather than an empty picker
+    assert ollama_service.chat_models(["nomic-embed-text:latest"]) == ["nomic-embed-text:latest"]
+
+def test_pick_embed_model():
+    assert ollama_service.pick_embed_model(
+        ["llama3.1:latest", "nomic-embed-text:latest"], "fb") == "nomic-embed-text:latest"
+    assert ollama_service.pick_embed_model(["llama3.1:latest"], "fb") == "fb"
+
+def test_installed_models_unreachable_returns_empty():
+    original = ollama_service.OLLAMA_URL
+    ollama_service.OLLAMA_URL = "http://localhost:9"   # discard port, fails fast
+    try:
+        assert ollama_service.installed_models(timeout=0.5) == []
+    finally:
+        ollama_service.OLLAMA_URL = original
+
+# ── RAG chat (FakeLLM, no Ollama) ────────────────────────────────────────
+
+def test_query_routing():
+    rag = _rag(_ledger(), web=True)
+    assert rag._detect_query_type("how much did I spend on stores?") == 'personal_data'
+    assert rag._detect_query_type("usd exchange rate today") == 'web_search'
+    assert rag._detect_query_type("how do bonds work") == 'general_finance'
+    rag.web_enabled = False
+    assert rag._detect_query_type("usd exchange rate today") == 'general_finance', \
+        "privacy mode must never route to the web"
+
+def test_keyword_search_survives_regex_injection():
+    rag = _rag(_ledger())
+    out = rag._keyword_search_fallback("find (unclosed [paren Netflix")
+    assert "Netflix" in out
+
+def test_financial_summary_contents():
+    summary = _rag(_ledger())._format_financial_summary()
+    assert "18,000.00" in summary            # 6 months salary
+    assert "Net savings" in summary
+
+def test_chat_context_trims_and_excludes_current():
+    rag = _rag()
+    for i in range(10):
+        rag.chat_history.append({"role": "user", "content": f"q{i}"})
+        rag.chat_history.append({"role": "assistant", "content": f"a{i}"})
+    rag.chat_history.append({"role": "user", "content": "CURRENT"})
+    ctx = rag._get_chat_context()
+    assert "CURRENT" not in ctx
+    assert "q9" in ctx and "q0" not in ctx
+
+def test_data_query_prompt_assembly():
+    rag = _rag(_ledger())
+    answer = rag.get_response("how much did I spend at Netflix?")
+    assert answer.startswith("FAKE|")
+    assert "FINANCIAL SNAPSHOT" in answer     # summary injected
+    assert "Netflix" in answer                # retrieval found the merchant
+    assert rag.chat_history[-1]["content"] == answer
+
+def test_history_capped_at_20():
+    rag = _rag(_ledger())
+    for i in range(15):
+        rag.get_response(f"question {i}")
+    assert len(rag.chat_history) == 20
+
+def test_analyst_verdict_uses_data():
+    verdict = _rag(_ledger()).analyst_verdict()
+    assert verdict.startswith("FAKE|") and "letter grade" in verdict
+
+def test_no_data_query_asks_for_upload():
+    rag = _rag()
+    assert "upload" in rag._handle_data_query("what did I spend?").lower()
+
+# ── UI helpers & theming ─────────────────────────────────────────────────
