@@ -44,3 +44,29 @@ class RAGFinanceChat:
             self.financial_analysis = None
 
     # ── indexing ──────────────────────────────────────────────────────────
+
+    def _make_embeddings(self):
+        if self.embeddings is None:
+            self.embeddings = OllamaEmbeddings(model=self.embed_model)
+        return self.embeddings
+
+    def _initialize_semantic_search(self):
+        """Embed each transaction for fuzzy retrieval."""
+        try:
+            if self.financial_data is None or len(self.financial_data) == 0:
+                return
+            documents = []
+            for idx, row in self.financial_data.iterrows():
+                content = (
+                    f"Transaction: {row.get('Name/Description', 'N/A')} | "
+                    f"Category: {row.get('Category', 'N/A')} | "
+                    f"Amount: ${abs(row.get('Amount', 0)):.2f} | "
+                    f"Type: {row.get('Expense/Income', 'N/A')} | "
+                    f"Date: {row.get('Date', 'N/A')}"
+                )
+                documents.append(Document(page_content=content, metadata={'index': idx}))
+            self.vector_store = InMemoryVectorStore(embedding=self._make_embeddings())
+            self.vector_store.add_documents(documents)
+        except Exception as e:
+            print(f"Semantic search initialization failed: {e}")
+            self.use_semantic_search = False
