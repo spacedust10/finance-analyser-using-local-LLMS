@@ -169,3 +169,16 @@ class FinanceVisualizer:
                             mode='lines+markers', name=cat)
         fig.update_layout(yaxis_title="Amount ($)", hovermode='x unified')
         return fig
+
+    def mom_change(self):
+        """Diverging bar: spent more (rose) vs spent less (emerald) than last month."""
+        change = month_over_month_change(self.df)
+        if change.empty:
+            return None
+        colors = [self.c["rose"] if v > 0 else self.c["emerald"] for v in change.values]
+        fig = self._fig("Spending change vs previous month", height=360)
+        fig.add_bar(x=change.index, y=change.values, marker_color=colors,
+                    text=[f"{'+' if v > 0 else ''}${v:,.0f}" for v in change.values],
+                    textposition="outside")
+        fig.update_layout(yaxis_title="Δ spending ($)", showlegend=False)
+        return fig
