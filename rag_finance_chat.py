@@ -70,3 +70,25 @@ class RAGFinanceChat:
         except Exception as e:
             print(f"Semantic search initialization failed: {e}")
             self.use_semantic_search = False
+
+    def index_documents(self, chunks: list) -> int:
+        """Add pre-chunked reference documents ({'text','source','chunk'}) to
+        the document vector store. Returns number of chunks indexed."""
+        docs = [
+            Document(page_content=c["text"],
+                     metadata={"source": c["source"], "chunk": c["chunk"]})
+            for c in chunks
+        ]
+        if self.document_store is None:
+            self.document_store = InMemoryVectorStore(embedding=self._make_embeddings())
+        self.document_store.add_documents(docs)
+        for c in chunks:
+            if c["source"] not in self.document_names:
+                self.document_names.append(c["source"])
+        return len(docs)
+
+    def clear_documents(self):
+        self.document_store = None
+        self.document_names = []
+
+    # ── analysis snapshot ────────────────────────────────────────────────
