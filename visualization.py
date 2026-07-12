@@ -48,3 +48,18 @@ class FinanceVisualizer:
         fig = go.Figure()
         fig.update_layout(template=self.template, title=title, height=height)
         return fig
+
+    def cash_flow(self):
+        """Income up, spending down, net as a line — one chart tells the month's story."""
+        monthly = monthly_cash_flow(self.df)
+        if monthly.empty:
+            return None
+        fig = self._fig("Cash flow by month", height=440)
+        fig.add_bar(x=monthly['YearMonth'], y=monthly['Income'], name='Income',
+                    marker_color=self.c["emerald"])
+        fig.add_bar(x=monthly['YearMonth'], y=-monthly['Expense'], name='Spending',
+                    marker_color=self.c["amber"])
+        fig.add_scatter(x=monthly['YearMonth'], y=monthly['Net'], name='Net',
+                        mode='lines+markers', line=dict(color=self.c["paper"], width=2))
+        fig.update_layout(barmode='relative', yaxis_title="Amount ($)", hovermode='x unified')
+        return fig
