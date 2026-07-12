@@ -103,3 +103,28 @@ class FinanceVisualizer:
                       annotation_text="20% guideline", annotation_font_color=self.c["muted"])
         fig.update_layout(yaxis_title="Savings rate (%)", showlegend=False)
         return fig
+
+    def sankey(self):
+        income = self.df[self.df['Expense/Income'] == 'Income']
+        spend = self.df[self.df['Expense/Income'] == 'Expense']
+        if income.empty or spend.empty or 'Category' not in self.df.columns:
+            return None
+        income_by_cat = income.groupby('Category')['Amount'].sum().nlargest(5)
+        spend_by_cat = spend.groupby('Category')['Amount'].sum().nlargest(8)
+
+        labels = list(income_by_cat.index) + ["Your account"] + list(spend_by_cat.index)
+        account = len(income_by_cat)
+        sources = list(range(len(income_by_cat))) + [account] * len(spend_by_cat)
+        targets = [account] * len(income_by_cat) + list(range(account + 1, len(labels)))
+        values = list(income_by_cat.values) + list(spend_by_cat.values)
+
+        fig = go.Figure(go.Sankey(
+            node=dict(pad=15, thickness=18, label=labels,
+                      line=dict(color=self.c["grid"], width=0.5),
+                      color=[self.c["emerald"]] * len(income_by_cat) + [self.c["mint"]]
+                            + [self.c["amber"]] * len(spend_by_cat)),
+            link=dict(source=sources, target=targets, value=values,
+                      color=self.c["band"]),
+        ))
+        fig.update_layout(template=self.template, title="Money flow", height=520)
+        return fig
