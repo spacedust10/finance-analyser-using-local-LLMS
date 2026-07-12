@@ -128,3 +128,17 @@ class FinanceVisualizer:
         ))
         fig.update_layout(template=self.template, title="Money flow", height=520)
         return fig
+
+    def treemap(self):
+        spend = self.df[self.df['Expense/Income'] == 'Expense']
+        if spend.empty or 'Category' not in spend.columns:
+            return None
+        cats = spend.groupby('Category')['Amount'].sum().reset_index()
+        fig = go.Figure(go.Treemap(
+            labels=cats['Category'], parents=[""] * len(cats), values=cats['Amount'],
+            texttemplate="%{label}<br>$%{value:,.0f}",
+            marker=dict(colors=cats['Amount'],
+                        colorscale=[[0, self.c["band"]], [1, self.c["amber"]]]),
+        ))
+        fig.update_layout(template=self.template, title="Spending by category", height=440)
+        return fig
