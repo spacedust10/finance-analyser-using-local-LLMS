@@ -210,3 +210,54 @@ class RAGFinanceChat:
         return context
 
     # ── routing ──────────────────────────────────────────────────────────
+
+    def set_web_enabled(self, enabled: bool):
+        self.web_enabled = enabled
+
+    def _detect_query_type(self, query: str) -> str:
+        query_lower = query.lower()
+        personal = [
+            r'\bmy\b', r'\bi\s+(spent|earned|saved|bought|paid)',
+            r'\bshow\s+me\b', r'\bfind\s+(all|my)',
+            r'\bhow\s+much\s+(did\s+)?i\b', r'\bwhat\s+(did\s+)?i\b',
+            r'\bin\s+my\s+(data|account|transactions)'
+        ]
+        web = [
+            r'\b(current|today|now|latest|recent)\b.*\b(rate|price|value)',
+            r'\bexchange\s+rate\b', r'\bstock\s+price\b',
+            r'\btoday\'?s\b', r'\bright\s+now\b', r'\blatest\s+(news|update)',
+        ]
+        if any(re.search(p, query_lower) for p in personal):
+            return 'personal_data'
+        if self.web_enabled and any(re.search(p, query_lower) for p in web):
+            return 'web_search'
+        if self.financial_data is not None and re.search(
+                r'\b(category|categories|spending|expenses|income)\b', query_lower):
+            return 'personal_data'
+        return 'general_finance'
+
+    def _search_web(self, query: str) -> Optional[str]:
+        if not self.web_enabled:
+            return None
+        try:
+            # the old duckduckgo_search package is permanently rate-limited;
+            # ddgs is its maintained successor
+            try:
+                from ddgs import DDGS
+            except ImportError:
+                from duckduckgo_search import DDGS
+            with DDGS(timeout=10) as ddgs:
+                results = list(ddgs.text(query, max_results=3))
+            if not results:
+                return None
+            context = "\n\nLIVE WEB INFORMATION:\n"
+            for r in results:
+                context += f"- {r.get('title', 'N/A')}: {r.get('body', 'N/A')} ({r.get('href', 'N/A')})\n"
+            return context
+        except ImportError:
+            return "Web search unavailable. Install: pip install ddgs"
+        except Exception as e:
+            print(f"Web search error: {e}")
+            return None
+
+    # ── responses ────────────────────────────────────────────────────────
