@@ -11,3 +11,12 @@ def totals(df: pd.DataFrame) -> tuple:
     savings = income - expenses
     rate = savings / income * 100 if income > 0 else 0.0
     return income, expenses, savings, rate
+
+def monthly_cash_flow(df: pd.DataFrame) -> pd.DataFrame:
+    """Per-month Income, Expense, Net — the backbone of the overview charts."""
+    monthly = df.groupby(['YearMonth', 'Expense/Income'])['Amount'].sum().unstack(fill_value=0)
+    for col in ('Income', 'Expense'):
+        if col not in monthly.columns:
+            monthly[col] = 0.0
+    monthly['Net'] = monthly['Income'] - monthly['Expense']
+    return monthly.reset_index().sort_values('YearMonth')
