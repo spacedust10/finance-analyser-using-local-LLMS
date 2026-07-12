@@ -89,3 +89,17 @@ class FinanceVisualizer:
         ))
         fig.update_layout(showlegend=False, yaxis_title="Amount ($)")
         return fig
+
+    def savings_rate_trend(self):
+        monthly = monthly_cash_flow(self.df)
+        if monthly.empty:
+            return None
+        income = monthly['Income'].where(monthly['Income'] != 0)
+        rate = (monthly['Net'] / income * 100)
+        fig = self._fig("Savings rate by month", height=360)
+        fig.add_scatter(x=monthly['YearMonth'], y=rate, mode='lines+markers',
+                        line=dict(color=self.c["emerald"], width=2), name='Savings rate')
+        fig.add_hline(y=20, line_dash="dot", line_color=self.c["muted"],
+                      annotation_text="20% guideline", annotation_font_color=self.c["muted"])
+        fig.update_layout(yaxis_title="Savings rate (%)", showlegend=False)
+        return fig
