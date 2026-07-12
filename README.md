@@ -1,73 +1,81 @@
+# The Private Ledger — Finance Analyzer using Local LLMs
 
-# Finance Analyzer - On-Device Personal Financial Analysis
+Your finances, analyzed where they live — on your machine. Upload a bank-statement
+CSV and get a Rocket-Money-style dashboard, subscription detection, spending
+forecasts, and an AI analyst you can chat with — all powered by local Ollama
+models. Nothing leaves your computer unless you explicitly enable web search.
 
-This finance analyzer project is an on-device, data-driven tool designed to analyze personal financial data. Users can upload financial statements in CSV format, which are processed and categorized using open-source models from Ollama’s Llama3.1. The project ensures privacy by keeping all analysis and computations on-device. It provides detailed insights into income, expenses, saving rates, and spending patterns through interactive visualizations like pie charts, bar charts, and line graphs. Built with Streamlit, the tool offers a user-friendly interface and generates customized financial reports without relying on external cloud services.
+## Features
 
-# An Overview
-![ABSTRACT](https://github.com/user-attachments/assets/b0aee355-cf7f-434b-81d8-5be93d34e5e7 "Flow")
----
-## Project Breakdown
-### 1. File Upload & Data Processing
-- Users upload financial statements in CSV format.
-- The system processes the data, categorizing transactions into income and expenses using Ollama’s open-source LLM models.
-- Date columns are converted to extract useful information like year, month, and day.
+- **Dashboard** — monthly cash flow (income up / spending down / net line),
+  income-to-savings waterfall, money-flow sankey, category treemap and trends,
+  month-over-month change, savings-rate tracking against the 20% guideline
+- **Recurring charges** — Rocket-Money-style subscription detection
+  (weekly / monthly / quarterly / yearly cadences) with annualized cost
+- **Forecast** — 3-month spending projection with an 80% confidence band
+- **AI assistant** — RAG chat over your transactions with analyst-style,
+  evidence-cited answers; on-demand analyst brief (grade + strength / risk / action)
+- **Documents** — attach 10-K filings, receipts, or reports (PDF/TXT/MD);
+  chunked and embedded locally, cited as `[filename, part N]` in answers
+- **Model picker** — use any Ollama model you have installed; a dedicated
+  embedding model (e.g. `nomic-embed-text`) is auto-selected when present
+- **Smart classification** — the LLM's merchant knowledge categorizes
+  transactions deterministically, with graceful fallback when Ollama is off
+- **Dual themes** — light and dark, with charts that re-theme instantly
+- **Robust CSV cleaning** — US (`$1,234.56`) and EU (`1 234,56`) amount formats,
+  mixed-case types, invalid rows dropped and reported
 
-### 2. Data Categorization
-- Transactions are automatically classified into categories (e.g., food, rent, salary) using a custom model.
-- This ensures that financial insights can be tailored to specific categories of spending and income.
+## Setup
 
-### 3. Data Visualization
-Interactive visualizations include:
-- **Pie Charts**: Breakdown of income and expenses by category.
-- **Bar Charts**: Monthly income and expense trends.
-- **Line Charts**: Saving rate trends over time.
-  
-Visualizations are built using libraries like [Plotly](https://plotly.com/python/) for a seamless user experience.
-
-### 4. Local LLM Integration
-- The project uses Ollama’s Llama3.1 LLMs for categorizing transactions.
-- All computations happen on-device, ensuring privacy and security of financial data.
-
-### 5. Streamlit Interface
-- A user-friendly dashboard is built using [Streamlit](https://docs.streamlit.io) to provide:
-  - Easy file upload
-  - Real-time data analysis
-  - Display of financial insights through various charts and graphs
-- No external cloud services are used; the tool runs locally on your device.
-
-# Installation
-
-## 1. Prerequisites
-
-Before you begin, ensure you have the following:
-- Python 3.8 or higher
-- Internet access to download dependencies
-
-## 2. Installing Ollama (for LLM-based Transaction Categorization)
-Ollama provides the LLM used for transaction categorization. Follow the steps based on your platform
-
-- [For Ollama API](https://ollama.com/download)
-- After Installation, to use the open-source models with Ollama:
 ```bash
-ollama pull llama3.1
-```
-> you can have any model name instead of __llama3.1__ and change in the code accordingly
+# 1. Install Ollama and pull at least one model
+ollama pull llama3.2            # chat + classification
+ollama pull nomic-embed-text    # embeddings (optional, recommended)
 
-## 3. Setting up Python Environment
-- Clone the Repository and open that in your IDE
-```bash
-git clone https://github.com/yourusername/finance-analyzer.git
-cd finance-analyzer
-```
-- Install Python dependencies: You will need to install the required Python packages listed in the requirements.txt file.
-```bash
+# 2. Install Python dependencies
 pip install -r requirements.txt
-```
-## 4. Running the Project
-Once all dependencies and models are installed, you can start the Finance Analyzer app. <br>Run the app locally using __Streamlit__:
-```bash
+
+# 3. Run
 streamlit run app.py
 ```
-Open your browser and navigate to the Streamlit app (usually runs at ```http://localhost:8501```).
 
-For additional support, refer to the [Ollama documentation](https://github.com/ollama/ollama/tree/main/docs) and the [Streamlit documentation.](https://docs.streamlit.io/)
+CSV format (see `sample_transactions.csv`):
+
+```csv
+Date,Name/Description,Expense/Income,Amount
+2024-01-05,Acme Corp Payroll,Income,2900.00
+2024-01-06,Netflix.com,Expense,13.99
+```
+
+## Architecture
+
+```
+app.py                    # shell: nav, theme sync, routing
+├── services/
+│   ├── file_service.py         # CSV read + clean (amounts, dates, types)
+│   ├── classification_service.py  # LLM categorization, position-mapped parsing
+│   ├── analysis_service.py     # totals, cash flow, recurring, forecast
+│   ├── ollama_service.py       # local model discovery
+│   ├── document_service.py     # PDF/TXT extraction + chunking
+│   ├── chat_service.py         # wrapper around the RAG engine
+│   └── (rag_finance_chat.py)   # RAG: retrieval, routing, prompts, verdict
+├── ui/
+│   ├── pages/                  # dashboard, assistant, documents
+│   └── components/             # sidebar, metrics, chat
+├── visualization.py            # 11 theme-aware Plotly charts
+├── config/                     # settings, design system (dual palettes)
+└── utils/state_manager.py      # session state
+```
+
+## Tests
+
+```bash
+python3 test_core.py    # 40 offline tests, no Ollama needed
+```
+
+## Privacy
+
+All analysis, classification, embeddings, and chat run against your local
+Ollama instance. The only network calls are the optional web search toggle
+(ddgs) and Google Fonts. Note: Ollama "cloud" models (e.g. `*-cloud`) proxy to
+ollama.com — pick a fully local model if that matters to you.
