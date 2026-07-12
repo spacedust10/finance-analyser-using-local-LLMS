@@ -205,3 +205,20 @@ class FinanceVisualizer:
                     text=[f"${v:,.0f}" for v in merchants['Total']], textposition="outside")
         fig.update_layout(xaxis_title="Amount ($)", showlegend=False)
         return fig
+
+    def forecast(self):
+        fc = forecast_monthly(self.df)
+        if fc.empty:
+            return None
+        fig = self._fig("Spending forecast — next 3 months", height=440)
+        fig.add_scatter(x=fc['YearMonth'], y=fc['Expense'], name='Actual',
+                        mode='lines+markers', line=dict(color=self.c["amber"], width=2))
+        fig.add_scatter(x=fc['YearMonth'], y=fc['Expense_hi'], mode='lines',
+                        line=dict(width=0), showlegend=False, hoverinfo='skip')
+        fig.add_scatter(x=fc['YearMonth'], y=fc['Expense_lo'], mode='lines',
+                        line=dict(width=0), fill='tonexty', fillcolor=self.c["band"],
+                        name='80% band')
+        fig.add_scatter(x=fc['YearMonth'], y=fc['Expense_forecast'], name='Forecast',
+                        mode='lines+markers', line=dict(color=self.c["amber"], width=2, dash='dash'))
+        fig.update_layout(yaxis_title="Spending ($)", hovermode='x unified')
+        return fig
