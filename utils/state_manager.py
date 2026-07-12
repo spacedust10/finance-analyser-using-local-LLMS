@@ -22,6 +22,27 @@ class StateManager:
             st.session_state.doc_chunks = {}   # filename → chunk list
 
     @staticmethod
+    def build_chat_service(df=None):
+        """Chat service wired to the session's model choice; re-indexes any
+        documents already attached this session (embeddings are per-model)."""
+        from services.chat_service import ChatService
+        from services.ollama_service import installed_models, chat_models, pick_embed_model
+
+        models = installed_models()
+        model = StateManager.get_model() or (chat_models(models)[0] if models else None)
+        embed = pick_embed_model(models, model) if models else None
+
+        service = ChatService(df, StateManager.is_semantic_enabled(),
+                              model_name=model, embed_model=embed)
+        service.set_web_enabled(StateManager.is_web_enabled())
+        for chunks in st.session_state.doc_chunks.values():
+            try:
+                service.index_documents(chunks)
+            except Exception as e:
+                print(f"Document re-index failed: {e}")
+        return service
+    
+    @staticmethod
     def get_data() -> Optional[pd.DataFrame]:
         """Get categorized dataframe"""
         return st.session_state.app_state.categorized_df
