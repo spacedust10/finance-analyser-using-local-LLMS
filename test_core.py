@@ -124,3 +124,103 @@ def test_parse_response_short_reply_pads():
     assert svc._parse_response("1. Groceries", 3) == ["Groceries", "Uncategorized", "Uncategorized"]
 
 # ── analysis ─────────────────────────────────────────────────────────────
+
+def test_totals():
+    df = pd.DataFrame({'Expense/Income': ['Income', 'Expense'], 'Amount': [200.0, 50.0]})
+    assert totals(df) == (200.0, 50.0, 150.0, 75.0)
+
+def test_totals_zero_income():
+    df = pd.DataFrame({'Expense/Income': ['Expense'], 'Amount': [50.0]})
+    assert totals(df) == (0.0, 50.0, -50.0, 0.0)
+
+def test_monthly_summary_zero_income_month():
+    df = pd.DataFrame({
+        'YearMonth': ['2024-01', '2024-01', '2024-02'],
+        'Expense/Income': ['Income', 'Expense', 'Expense'],
+        'Amount': [100.0, 40.0, 10.0],
+    })
+    monthly = FinancialAnalysisService().get_monthly_summary(df)
+    assert monthly.loc['2024-01', 'Savings_Rate'] == 60.0
+    assert math.isnan(monthly.loc['2024-02', 'Savings_Rate']), "zero-income month must be NaN, not crash"
+
+def test_cash_flow():
+    cash = monthly_cash_flow(_ledger())
+    assert len(cash) == 6
+    assert cash['Net'].iloc[0] == 3000.0 - 15.49 - 110.0
+
+def test_cash_flow_expense_only_data():
+    df = _ledger()
+    cash = monthly_cash_flow(df[df['Expense/Income'] == 'Expense'])
+    assert (cash['Income'] == 0).all() and (cash['Net'] < 0).all()
+
+def test_month_over_month_change():
+    change = month_over_month_change(_ledger())
+    assert len(change) == 5
+    assert abs(change.iloc[0] - 10.0) < 1e-9, "store spend rises $10/month"
+
+def test_top_merchants():
+    top = top_merchants(_ledger(), n=3)
+    assert len(top) == 3
+    assert top['Total'].is_monotonic_decreasing
+
+def test_recurring_monthly():
+    rec = detect_recurring(_ledger())
+    assert list(rec['Merchant']) == ['Netflix']
+    assert rec['Cadence'].iloc[0] == 'Monthly'
+    assert abs(rec['Annualized'].iloc[0] - 15.49 * 12) < 0.1
+
+def test_recurring_cadences_and_rejections():
+    def spend(dates, name, amounts):
+        return pd.DataFrame({'Date': pd.to_datetime(dates), 'Name/Description': name,
+                             'Amount': amounts, 'Expense/Income': 'Expense'})
+    weekly = spend(pd.date_range('2024-01-01', periods=8, freq='7D'), 'Gym', [10.0] * 8)
+    quarterly = spend(pd.date_range('2024-01-01', periods=4, freq='91D'), 'Water Bill', [90.0] * 4)
+    yearly = spend(pd.date_range('2020-03-01', periods=4, freq='365D'), 'Insurance', [500.0] * 4)
+    two_only = spend(['2024-01-01', '2024-02-01'], 'Rare', [9.0, 9.0])
+    wobbly = spend(pd.date_range('2024-01-01', periods=5, freq='30D'), 'Random Shop',
+                   [10.0, 200.0, 15.0, 300.0, 20.0])
+    df = pd.concat([weekly, quarterly, yearly, two_only, wobbly])
+    rec = detect_recurring(df)
+    assert set(rec['Merchant']) == {'Gym', 'Water Bill', 'Insurance'}, f"got {rec}"
+    assert dict(zip(rec['Merchant'], rec['Cadence'])) == {
+        'Gym': 'Weekly', 'Water Bill': 'Quarterly', 'Insurance': 'Yearly'}
+
+def test_forecast_shape():
+    fc = forecast_monthly(_ledger(), months_ahead=3)
+    assert len(fc) == 9
+    assert math.isnan(fc['Expense'].iloc[-1])
+    assert not math.isnan(fc['Expense_forecast'].iloc[-1])
+    assert fc['Expense_lo'].iloc[-1] <= fc['Expense_forecast'].iloc[-1] <= fc['Expense_hi'].iloc[-1]
+    assert fc['Expense_forecast'].iloc[-1] > fc['Expense'].dropna().iloc[0]
+
+def test_forecast_needs_three_months():
+    assert forecast_monthly(_ledger(months=2)).empty
+
+# ── documents ────────────────────────────────────────────────────────────
+
+def test_extract_text_txt():
+    f = NamedBytesIO("hello ledger".encode(), "notes.txt")
+    assert DocumentService().extract_text(f) == "hello ledger"
+
+def test_extract_text_pdf():
+    from pypdf import PdfWriter
+    buf = io.BytesIO()
+    writer = PdfWriter()
+    writer.add_blank_page(width=200, height=200)
+    writer.write(buf)
+    text = DocumentService().extract_text(NamedBytesIO(buf.getvalue(), "filing.pdf"))
+    assert text.startswith("[page 1]")
+
+def test_chunker_overlap_and_citation():
+    text = "\n\n".join(f"Paragraph {i} " + "x" * 300 for i in range(12))
+    chunks = DocumentService().chunk(text, "10k.pdf")
+    assert all(len(c["text"]) <= CHUNK_CHARS + 300 for c in chunks)
+    assert chunks[0]["source"] == "10k.pdf" and chunks[0]["chunk"] == 1
+    assert len(chunks) >= 3
+    assert chunks[1]["text"][:50] in chunks[0]["text"], "overlap missing"
+
+def test_chunker_short_text_single_chunk():
+    chunks = DocumentService().chunk("just a receipt line", "r.txt")
+    assert len(chunks) == 1 and chunks[0]["chunk"] == 1
+
+# ── ollama service ───────────────────────────────────────────────────────
