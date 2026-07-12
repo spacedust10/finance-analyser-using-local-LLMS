@@ -20,3 +20,14 @@ def monthly_cash_flow(df: pd.DataFrame) -> pd.DataFrame:
             monthly[col] = 0.0
     monthly['Net'] = monthly['Income'] - monthly['Expense']
     return monthly.reset_index().sort_values('YearMonth')
+
+def month_over_month_change(df: pd.DataFrame) -> pd.Series:
+    """Dollar change in total spending vs the previous month."""
+    spend = df[df['Expense/Income'] == 'Expense'].groupby('YearMonth')['Amount'].sum().sort_index()
+    return spend.diff().dropna()
+
+def top_merchants(df: pd.DataFrame, n: int = 10) -> pd.DataFrame:
+    spend = df[df['Expense/Income'] == 'Expense']
+    merchants = spend.groupby('Name/Description')['Amount'].agg(['sum', 'count'])
+    merchants.columns = ['Total', 'Charges']
+    return merchants.sort_values('Total', ascending=False).head(n)
