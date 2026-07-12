@@ -50,21 +50,30 @@ Date,Name/Description,Expense/Income,Amount
 ## Architecture
 
 ```
-app.py                    # shell: nav, theme sync, routing
+.
+├── app.py                      # shell: nav, theme sync, routing
+├── rag_finance_chat.py         # RAG engine: retrieval, routing, prompts, verdict
+├── visualization.py            # 11 theme-aware Plotly charts
+├── test_core.py                # 40-test offline suite
+├── sample_transactions.csv     # synthetic 7-year test dataset
 ├── services/
 │   ├── file_service.py         # CSV read + clean (amounts, dates, types)
 │   ├── classification_service.py  # LLM categorization, position-mapped parsing
 │   ├── analysis_service.py     # totals, cash flow, recurring, forecast
 │   ├── ollama_service.py       # local model discovery
 │   ├── document_service.py     # PDF/TXT extraction + chunking
-│   ├── chat_service.py         # wrapper around the RAG engine
-│   └── (rag_finance_chat.py)   # RAG: retrieval, routing, prompts, verdict
+│   └── chat_service.py         # wrapper around the RAG engine
 ├── ui/
 │   ├── pages/                  # dashboard, assistant, documents
 │   └── components/             # sidebar, metrics, chat
-├── visualization.py            # 11 theme-aware Plotly charts
-├── config/                     # settings, design system (dual palettes)
-└── utils/state_manager.py      # session state
+├── config/
+│   ├── settings.py             # app, model and category config
+│   └── styles.py               # design system (dual palettes, theme sync)
+├── core/
+│   └── models.py               # session state dataclass
+├── utils/
+│   └── state_manager.py        # session state + chat-service factory
+└── .streamlit/config.toml      # light/dark theme definitions
 ```
 
 ## Tests
