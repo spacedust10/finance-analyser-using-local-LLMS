@@ -142,3 +142,15 @@ class FinanceVisualizer:
         ))
         fig.update_layout(template=self.template, title="Spending by category", height=440)
         return fig
+
+    def category_bar(self):
+        spend = self.df[self.df['Expense/Income'] == 'Expense']
+        if spend.empty or 'Category' not in spend.columns:
+            return None
+        cats = spend.groupby('Category')['Amount'].sum().sort_values()
+        fig = self._fig("Total spending by category", height=max(340, 32 * len(cats)))
+        fig.add_bar(x=cats.values, y=cats.index, orientation='h',
+                    marker_color=self.c["amber"],
+                    text=[f"${v:,.0f}" for v in cats.values], textposition="outside")
+        fig.update_layout(xaxis_title="Amount ($)", showlegend=False)
+        return fig
