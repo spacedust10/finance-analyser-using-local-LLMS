@@ -193,3 +193,15 @@ class FinanceVisualizer:
                     text=[f"${v:,.0f}/yr" for v in rec['Annualized']], textposition="outside")
         fig.update_layout(xaxis_title="Cost per year ($)", showlegend=False)
         return fig
+
+    def top_merchants_bar(self):
+        merchants = top_merchants(self.df)
+        if merchants.empty:
+            return None
+        merchants = merchants.sort_values('Total')
+        fig = self._fig("Top merchants by total spend", height=max(340, 34 * len(merchants)))
+        fig.add_bar(x=merchants['Total'], y=merchants.index, orientation='h',
+                    marker_color=self.c["amber"],
+                    text=[f"${v:,.0f}" for v in merchants['Total']], textposition="outside")
+        fig.update_layout(xaxis_title="Amount ($)", showlegend=False)
+        return fig
