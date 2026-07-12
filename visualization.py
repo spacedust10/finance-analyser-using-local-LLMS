@@ -154,3 +154,18 @@ class FinanceVisualizer:
                     text=[f"${v:,.0f}" for v in cats.values], textposition="outside")
         fig.update_layout(xaxis_title="Amount ($)", showlegend=False)
         return fig
+
+    def category_trends(self):
+        spend = self.df[self.df['Expense/Income'] == 'Expense']
+        if spend.empty or 'Category' not in spend.columns or 'YearMonth' not in spend.columns:
+            return None
+        top5 = spend.groupby('Category')['Amount'].sum().nlargest(5).index
+        monthly = (spend[spend['Category'].isin(top5)]
+                   .groupby(['YearMonth', 'Category'])['Amount'].sum().reset_index())
+        fig = self._fig("Top-5 categories over time", height=420)
+        for cat in top5:
+            rows = monthly[monthly['Category'] == cat]
+            fig.add_scatter(x=rows['YearMonth'], y=rows['Amount'],
+                            mode='lines+markers', name=cat)
+        fig.update_layout(yaxis_title="Amount ($)", hovermode='x unified')
+        return fig
