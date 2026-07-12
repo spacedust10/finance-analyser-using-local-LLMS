@@ -90,3 +90,34 @@ def forecast_monthly(df: pd.DataFrame, months_ahead: int = 3) -> pd.DataFrame:
         result[f'{col}_lo'] = blank_history + [actual[-1]] + list(projected - 1.28 * residual_sd)
         result[f'{col}_hi'] = blank_history + [actual[-1]] + list(projected + 1.28 * residual_sd)
     return result
+
+class FinancialAnalysisService:
+    """Service for analyzing financial data"""
+
+    def get_monthly_summary(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Get monthly breakdown"""
+        if 'YearMonth' not in data.columns:
+            return pd.DataFrame()
+
+        monthly = data.groupby(['YearMonth', 'Expense/Income'])['Amount'].sum().unstack(fill_value=0)
+
+        if 'Income' in monthly.columns and 'Expense' in monthly.columns:
+            monthly['Net_Savings'] = monthly['Income'] - monthly['Expense']
+            # .where keeps float dtype: zero-income months → NaN, not TypeError
+            income = monthly['Income'].where(monthly['Income'] != 0)
+            monthly['Savings_Rate'] = (monthly['Net_Savings'] / income * 100).round(1)
+
+        return monthly
+
+    def get_category_breakdown(self, data: pd.DataFrame, transaction_type: str = 'Expense') -> pd.DataFrame:
+        """Get spending/income by category"""
+        filtered = data[data['Expense/Income'] == transaction_type]
+
+        if 'Category' not in filtered.columns:
+            return pd.DataFrame()
+
+        breakdown = filtered.groupby('Category')['Amount'].agg(['sum', 'count', 'mean']).round(2)
+        breakdown.columns = ['Total', 'Count', 'Average']
+        breakdown = breakdown.sort_values('Total', ascending=False)
+
+        return breakdown
