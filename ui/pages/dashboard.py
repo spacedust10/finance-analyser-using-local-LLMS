@@ -66,3 +66,68 @@ class DashboardPage:
         with col2:
             _chart(viz.savings_rate_trend(), "savings_rate")
         _chart(viz.sankey(), "sankey")
+
+    def _render_categories(self, df: pd.DataFrame, viz: FinanceVisualizer):
+        col1, col2 = st.columns(2)
+        with col1:
+            _chart(viz.treemap(), "treemap")
+        with col2:
+            _chart(viz.category_bar(), "category_bar")
+        _chart(viz.category_trends(), "category_trends")
+        _chart(viz.mom_change(), "mom_change")
+
+        breakdown = self.analysis_service.get_category_breakdown(df)
+        if not breakdown.empty:
+            st.markdown("#### Category breakdown")
+            st.dataframe(breakdown, use_container_width=True)
+
+    def _render_recurring(self, df: pd.DataFrame, viz: FinanceVisualizer):
+        recurring = detect_recurring(df)
+        if recurring.empty:
+            st.info("No recurring charges detected — needs 3+ steady charges "
+                    "from the same merchant at a regular cadence.")
+            _chart(viz.top_merchants_bar(), "top_merchants")
+            return
+
+        annualized = recurring['Annualized'].sum()
+        st.markdown(
+            AppStyles.metric_card("Recurring spend, annualized",
+                                  f"${annualized:,.0f}/yr",
+                                  "var(--rose)",
+                                  f"{len(recurring)} active subscriptions"),
+            unsafe_allow_html=True,
+        )
+        _chart(viz.recurring_bar(recurring), "recurring_bar")
+        st.dataframe(recurring, use_container_width=True, hide_index=True)
+        _chart(viz.top_merchants_bar(), "top_merchants")
+
+    def _render_forecast(self, df: pd.DataFrame, viz: FinanceVisualizer):
+        forecast = forecast_monthly(df)
+        if forecast.empty:
+            st.info("Forecast needs at least 3 months of data.")
+            return
+
+        next_expense = forecast['Expense_forecast'].dropna().iloc[1]
+        next_net = forecast['Net_forecast'].dropna().iloc[1]
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(
+                AppStyles.metric_card("Projected spending, next month",
+                                      f"${next_expense:,.0f}", "var(--amber)"),
+                unsafe_allow_html=True,
+            )
+        with col2:
+            accent = "var(--mint)" if next_net >= 0 else "var(--rose)"
+            st.markdown(
+                AppStyles.metric_card("Projected net, next month",
+                                      f"${next_net:,.0f}", accent),
+                unsafe_allow_html=True,
+            )
+        _chart(viz.forecast(), "forecast")
+        st.caption("Linear trend over your monthly history with an 80% confidence band — "
+                   "a planning guide, not a guarantee.")
+
+        monthly = self.analysis_service.get_monthly_summary(df)
+        if not monthly.empty:
+            st.markdown("#### Monthly summary")
+            st.dataframe(monthly, use_container_width=True)
