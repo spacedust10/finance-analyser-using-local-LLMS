@@ -1,0 +1,19 @@
+# The Private Ledger — dual themes. User switches via app menu (⋮ → Settings);
+# st.context.theme.type tells the app which is active so CSS + charts follow.
+[theme]
+base = "dark"
+
+[theme.dark]
+primaryColor = "#4FCE8B"
+backgroundColor = "#0D1210"
+secondaryBackgroundColor = "#151C18"
+textColor = "#F4EFE6"
+
+[theme.light]
+primaryColor = "#1F9D5B"
+backgroundColor = "#F7F3EA"
+secondaryBackgroundColor = "#FFFDF8"
+textColor = "#1C231F"
+
+[browser]
+gatherUsageStats = false
