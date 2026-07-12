@@ -359,3 +359,32 @@ Answer:""",
             document_context=self._search_documents(question),
             question=question,
         )
+
+    def analyst_verdict(self) -> str:
+        """One-shot analyst brief on overall financial health."""
+        if not self.financial_analysis:
+            return "No data to analyze yet."
+        return self._invoke(
+            """You are a senior personal-finance analyst reviewing a client's numbers.
+
+{data_context}
+
+Write an "analyst brief": a letter grade (A-F) for financial health, then exactly
+three short bullets — the single biggest strength, the single biggest risk, and
+the one action with the highest impact. Ground every claim in the numbers above.
+Write dollar amounts in plain text.
+
+Brief:""",
+            data_context=self._format_financial_summary(),
+        )
+
+    # ── toggles ──────────────────────────────────────────────────────────
+
+    def enable_semantic_search(self):
+        if self.financial_data is not None and not self.use_semantic_search:
+            self.use_semantic_search = True
+            self._initialize_semantic_search()
+
+    def disable_semantic_search(self):
+        self.use_semantic_search = False
+        self.vector_store = None
