@@ -202,3 +202,44 @@ class AppStyles:
     }}
     </style>
     """
+
+    @staticmethod
+    def theme_sync_script(server_theme: str) -> str:
+        """Runs in a zero-height component iframe. Watches the real rendered
+        theme (Streamlit's menu switch doesn't rerun Python — see
+        st.context.theme docs); flips the CSS palette instantly and clicks the
+        hidden refresh button once so charts rebuild with the right theme."""
+        return """
+<script>
+const SERVER_THEME = "%s";
+const doc = window.parent.document;
+let clicked = false;
+function luminance(bg) {
+    const m = bg.match(/\\d+/g);
+    if (!m) return 255;
+    return 0.299 * m[0] + 0.587 * m[1] + 0.114 * m[2];
+}
+setInterval(() => {
+    const app = doc.querySelector('.stApp');
+    if (!app) return;
+    const kind = luminance(getComputedStyle(app).backgroundColor) < 128 ? 'dark' : 'light';
+    doc.documentElement.dataset.ledgerTheme = kind;
+    if (kind !== SERVER_THEME && !clicked) {
+        const btn = doc.querySelector('.st-key-theme_refresh button');
+        if (btn) {
+            clicked = true;
+            ['pointerdown','mousedown','pointerup','mouseup','click'].forEach(t =>
+                btn.dispatchEvent(new MouseEvent(t, {bubbles: true, cancelable: true})));
+        }
+    }
+}, 600);
+</script>
+""" % server_theme
+
+    MASTHEAD_HTML = """
+    <div class="ledger-masthead">
+        <div class="kicker">on-device &middot; private &middot; local AI</div>
+        <h1>The Private Ledger</h1>
+        <div class="tagline">Your finances, analyzed where they live &mdash; on your machine.</div>
+    </div>
+    """
