@@ -243,3 +243,33 @@ setInterval(() => {
         <div class="tagline">Your finances, analyzed where they live &mdash; on your machine.</div>
     </div>
     """
+
+    @staticmethod
+    def metric_card(label: str, value: str, accent: str, delta: str = "") -> str:
+        """Ledger metric card; accent is a CSS color for the top rule + value"""
+        delta_html = f'<div class="delta">{delta}</div>' if delta else ""
+        return f"""
+        <div class="ledger-card" style="--accent: {accent};">
+            <div class="label">{label}</div>
+            <div class="value">{value}</div>
+            {delta_html}
+        </div>
+        """
+
+    @staticmethod
+    def empty_state(title: str, body: str) -> str:
+        return f"""
+        <div class="ledger-empty">
+            <h2>{title}</h2>
+            <p>{body}</p>
+        </div>
+        """
+
+    @staticmethod
+    def chips(states: list) -> str:
+        """states: list of (label, bool). Renders a row of status chips."""
+        spans = "".join(
+            f'<span class="ledger-chip{" on" if on else ""}">{label}</span>'
+            for label, on in states
+        )
+        return f'<div class="ledger-chips">{spans}</div>'
