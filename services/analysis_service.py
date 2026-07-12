@@ -62,3 +62,31 @@ def detect_recurring(df: pd.DataFrame) -> pd.DataFrame:
     if recurring.empty:
         return recurring
     return recurring.sort_values('Annualized', ascending=False).reset_index(drop=True)
+
+def forecast_monthly(df: pd.DataFrame, months_ahead: int = 3) -> pd.DataFrame:
+    """Project Expense and Net for the next months_ahead months.
+    ponytail: linear trend + 80% residual band, no seasonality — swap in a
+    seasonal model when there are 2+ years of data to learn it from."""
+    cash = monthly_cash_flow(df)
+    if len(cash) < 3:
+        return pd.DataFrame()
+
+    history_idx = np.arange(len(cash))
+    future_idx = np.arange(len(cash), len(cash) + months_ahead)
+    last_period = pd.Period(cash['YearMonth'].iloc[-1], 'M')
+    future_labels = [str(last_period + i) for i in range(1, months_ahead + 1)]
+
+    result = pd.DataFrame({'YearMonth': list(cash['YearMonth']) + future_labels})
+    for col in ('Expense', 'Net'):
+        actual = cash[col].to_numpy(dtype=float)
+        slope, intercept = np.polyfit(history_idx, actual, 1)
+        residual_sd = float(np.std(actual - (slope * history_idx + intercept))) or 1.0
+        projected = slope * future_idx + intercept
+
+        blank_history = [np.nan] * (len(actual) - 1)
+        result[col] = list(actual) + [np.nan] * months_ahead
+        # forecast series starts at the last actual point so the line connects
+        result[f'{col}_forecast'] = blank_history + [actual[-1]] + list(projected)
+        result[f'{col}_lo'] = blank_history + [actual[-1]] + list(projected - 1.28 * residual_sd)
+        result[f'{col}_hi'] = blank_history + [actual[-1]] + list(projected + 1.28 * residual_sd)
+    return result
