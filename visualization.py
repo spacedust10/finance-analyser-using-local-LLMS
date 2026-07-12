@@ -63,3 +63,29 @@ class FinanceVisualizer:
                         mode='lines+markers', line=dict(color=self.c["paper"], width=2))
         fig.update_layout(barmode='relative', yaxis_title="Amount ($)", hovermode='x unified')
         return fig
+
+    def waterfall(self):
+        """Where the income went: top categories down to net savings."""
+        income = self.df[self.df['Expense/Income'] == 'Income']['Amount'].sum()
+        spend = self.df[self.df['Expense/Income'] == 'Expense']
+        if spend.empty or 'Category' not in spend.columns:
+            return None
+        top = spend.groupby('Category')['Amount'].sum().nlargest(6)
+        other = spend['Amount'].sum() - top.sum()
+
+        labels = ['Income'] + list(top.index) + ['Other', 'Net savings']
+        measures = ['absolute'] + ['relative'] * (len(top) + 1) + ['total']
+        values = [income] + [-v for v in top.values] + [-other, 0]
+
+        fig = self._fig("Where the income went", height=480)
+        fig.add_trace(go.Waterfall(
+            orientation="v", measure=measures, x=labels, y=values,
+            text=[f"${abs(v):,.0f}" for v in values[:-1]] + [""],
+            textposition="outside",
+            connector={"line": {"color": self.c["grid"]}},
+            decreasing={"marker": {"color": self.c["amber"]}},
+            increasing={"marker": {"color": self.c["emerald"]}},
+            totals={"marker": {"color": self.c["mint"]}},
+        ))
+        fig.update_layout(showlegend=False, yaxis_title="Amount ($)")
+        return fig
