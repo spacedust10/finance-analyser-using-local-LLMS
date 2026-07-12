@@ -148,3 +148,65 @@ class RAGFinanceChat:
         return summary
 
     # ── retrieval ────────────────────────────────────────────────────────
+
+    def _search_documents(self, query: str, k: int = 4) -> str:
+        """Retrieve reference-document excerpts with citation tags."""
+        if self.document_store is None:
+            return ""
+        try:
+            results = self.document_store.similarity_search(query, k=k)
+        except Exception as e:
+            print(f"Document search error: {e}")
+            return ""
+        if not results:
+            return ""
+        excerpts = "\n\nDOCUMENT EXCERPTS (cite as [source, part N]):\n"
+        for doc in results:
+            src, chunk = doc.metadata.get('source', '?'), doc.metadata.get('chunk', '?')
+            excerpts += f"\n[{src}, part {chunk}]\n{doc.page_content[:800]}\n"
+        return excerpts
+
+    def _semantic_search_transactions(self, query: str, k: int = 10) -> str:
+        if not self.use_semantic_search or self.vector_store is None:
+            return self._keyword_search_fallback(query, k)
+        try:
+            results = self.vector_store.similarity_search_with_score(query, k=k)
+            if not results:
+                return self._keyword_search_fallback(query, k)
+            context = "\n\nRELEVANT TRANSACTIONS:\n"
+            hits = 0
+            for doc, score in results:
+                if (1 - score) * 100 > 30:
+                    context += f"- {doc.page_content}\n"
+                    hits += 1
+            if hits == 0:
+                return self._keyword_search_fallback(query, k)
+            return context
+        except Exception as e:
+            print(f"Semantic search error: {e}")
+            return self._keyword_search_fallback(query, k)
+
+    def _keyword_search_fallback(self, query: str, k: int = 10) -> str:
+        if self.financial_data is None or self.financial_data.empty:
+            return ""
+        stopwords = {'spent', 'show', 'find', 'much', 'what', 'expenses', 'transactions', 'money'}
+        keywords = [w for w in query.lower().split() if len(w) > 3 and w not in stopwords]
+        if not keywords:
+            return ""
+        # re.escape: user query words go into a regex — "(unclosed" must not crash
+        pattern = '|'.join(re.escape(kw) for kw in keywords)
+        mask = self.financial_data['Name/Description'].str.contains(pattern, case=False, na=False)
+        if 'Category' in self.financial_data.columns:
+            mask |= self.financial_data['Category'].str.contains(pattern, case=False, na=False)
+        matches = self.financial_data[mask].head(k)
+        if matches.empty:
+            return ""
+        context = "\n\nMATCHING TRANSACTIONS:\n"
+        for _, row in matches.iterrows():
+            context += (f"- {row.get('Name/Description', 'N/A')} | {row.get('Category', 'N/A')} | "
+                        f"${abs(row.get('Amount', 0)):.2f} | {row.get('Date', 'N/A')}\n")
+        total = matches['Amount'].abs().sum()
+        context += f"Subtotal of matches: ${total:.2f} across {len(matches)} transactions\n"
+        return context
+
+    # ── routing ──────────────────────────────────────────────────────────
