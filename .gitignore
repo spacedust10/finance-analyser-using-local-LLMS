@@ -12,3 +12,5 @@ venv/
 .env
 *.log
 .streamlit/secrets.toml
+.serena/
+.qodo/
