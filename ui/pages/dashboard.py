@@ -45,3 +45,24 @@ class DashboardPage:
             self._render_recurring(df, viz)
         with forecast:
             self._render_forecast(df, viz)
+
+    def _render_analyst_brief(self, df: pd.DataFrame):
+        """LLM verdict on financial health — generated on demand, cached per data+model."""
+        cache_key = f"verdict_{len(df)}_{StateManager.get_model()}"
+        with st.expander("Analyst brief — local AI verdict"):
+            if st.button("Generate brief", key="gen_brief"):
+                if st.session_state.rag_chat is None:
+                    st.session_state.rag_chat = StateManager.build_chat_service(df)
+                with st.spinner("The analyst is reading your ledger..."):
+                    st.session_state[cache_key] = st.session_state.rag_chat.analyst_verdict()
+            if cache_key in st.session_state:
+                st.markdown(escape_dollars(st.session_state[cache_key]))
+
+    def _render_overview(self, viz: FinanceVisualizer):
+        _chart(viz.cash_flow(), "cash_flow")
+        col1, col2 = st.columns(2)
+        with col1:
+            _chart(viz.waterfall(), "waterfall")
+        with col2:
+            _chart(viz.savings_rate_trend(), "savings_rate")
+        _chart(viz.sankey(), "sankey")
