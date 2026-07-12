@@ -298,3 +298,53 @@ def test_no_data_query_asks_for_upload():
     assert "upload" in rag._handle_data_query("what did I spend?").lower()
 
 # ── UI helpers & theming ─────────────────────────────────────────────────
+
+def test_escape_dollars():
+    assert escape_dollars("save $100 and $200") == r"save \$100 and \$200"
+
+def test_mom_delta():
+    cash = pd.DataFrame({'Income': [100.0, 250.0]})
+    assert _mom_delta(cash, 'Income') == "+$150 vs last mo"
+    assert _mom_delta(cash.iloc[:1], 'Income') == ""
+
+def test_css_carries_both_palettes():
+    css = AppStyles.css("dark")
+    assert PALETTES['dark']['card'] in css and PALETTES['light']['card'] in css
+    assert 'data-ledger-theme="light"' in css
+    assert '.st-key-theme_refresh' in css     # hidden rerun trigger stays hidden
+
+def test_theme_sync_script_embeds_server_theme():
+    assert 'SERVER_THEME = "light"' in AppStyles.theme_sync_script("light")
+
+def test_components_html():
+    card = AppStyles.metric_card("Income", "$5", "#fff", "+$1 vs last mo")
+    assert "Income" in card and "+$1 vs last mo" in card
+    chips = AppStyles.chips([("on-chip", True), ("off-chip", False)])
+    assert 'ledger-chip on">on-chip' in chips and 'ledger-chip">off-chip' in chips
+    assert "Empty" in AppStyles.empty_state("Empty", "body")
+
+def test_all_charts_render_both_themes():
+    df = _ledger(8)
+    df['Category'] = df['Name/Description'].map(
+        lambda n: 'Salary/Wages' if n == 'Payroll'
+        else ('Subscriptions' if n == 'Netflix' else 'Shopping'))
+    for theme in ('dark', 'light'):
+        v = FinanceVisualizer(df, theme)
+        figs = [v.cash_flow(), v.waterfall(), v.savings_rate_trend(), v.sankey(),
+                v.treemap(), v.category_bar(), v.category_trends(), v.mom_change(),
+                v.recurring_bar(detect_recurring(df)), v.top_merchants_bar(), v.forecast()]
+        assert all(f is not None for f in figs), f"chart returned None in {theme}"
+
+def test_charts_degrade_to_none_without_data():
+    income_only = _ledger()[lambda d: d['Expense/Income'] == 'Income'].copy()
+    income_only['Category'] = 'Salary/Wages'
+    v = FinanceVisualizer(income_only, 'dark')
+    assert v.treemap() is None and v.category_bar() is None and v.waterfall() is None
+    assert v.recurring_bar(pd.DataFrame()) is None
+
+if __name__ == "__main__":
+    tests = [fn for name, fn in sorted(globals().items())
+             if name.startswith("test_") and callable(fn)]
+    for fn in tests:
+        fn()
+    print(f"ok — {len(tests)} tests")
