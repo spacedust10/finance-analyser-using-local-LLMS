@@ -98,3 +98,42 @@ class Sidebar:
 
         except Exception as e:
             st.sidebar.error(f"Error: {str(e)}")
+
+    def _render_stats(self):
+        """Render quick stats"""
+        df = StateManager.get_data()
+
+        if df is not None:
+            st.sidebar.markdown("### Ledger")
+
+            for w in st.session_state.get('data_warnings', []):
+                st.sidebar.warning(f"⚠ {w}")
+
+            income, expenses, savings, _ = totals(df)
+
+            st.sidebar.metric("Income", f"${income:,.0f}")
+            st.sidebar.metric("Expenses", f"${expenses:,.0f}")
+            st.sidebar.metric("Net savings", f"${savings:,.0f}")
+            st.sidebar.caption(f"{len(df)} transactions on file")
+
+    def _render_settings(self):
+        """Render settings section"""
+        st.sidebar.markdown("### Settings")
+
+        web_enabled = st.sidebar.toggle("Enable web search", value=StateManager.is_web_enabled())
+        StateManager.set_web_enabled(web_enabled)
+
+        if web_enabled:
+            st.sidebar.caption("Live rates & news available to the assistant")
+        else:
+            st.sidebar.caption("Nothing leaves this machine")
+
+        semantic_enabled = st.sidebar.toggle(
+            "Semantic search",
+            value=StateManager.is_semantic_enabled(),
+            help="Embedding-based fuzzy matching over your transactions"
+        )
+        StateManager.set_semantic_enabled(semantic_enabled)
+
+        st.sidebar.caption("Theme follows the app setting (⋮ → Settings → Appearance); "
+                           "charts adapt automatically.")
