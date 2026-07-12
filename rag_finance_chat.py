@@ -92,3 +92,59 @@ class RAGFinanceChat:
         self.document_names = []
 
     # ── analysis snapshot ────────────────────────────────────────────────
+
+    def _analyze_financial_data(self):
+        """Compute the summary snapshot injected into every data prompt."""
+        try:
+            df = self.financial_data
+            if 'Date' in df.columns and not pd.api.types.is_datetime64_any_dtype(df['Date']):
+                df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+
+            analysis = {'total_transactions': len(df)}
+            if 'Date' in df.columns:
+                analysis['date_range'] = {
+                    'start': df['Date'].min().strftime('%Y-%m-%d') if pd.notna(df['Date'].min()) else 'Unknown',
+                    'end': df['Date'].max().strftime('%Y-%m-%d') if pd.notna(df['Date'].max()) else 'Unknown'
+                }
+
+            income_df = df[df['Expense/Income'] == 'Income']
+            expense_df = df[df['Expense/Income'] == 'Expense']
+            analysis['income'] = {'total': float(income_df['Amount'].sum()), 'transactions': len(income_df)}
+            analysis['expenses'] = {'total': float(expense_df['Amount'].sum()), 'transactions': len(expense_df)}
+
+            total_income = analysis['income']['total']
+            total_expenses = analysis['expenses']['total']
+            analysis['savings'] = {
+                'total': total_income - total_expenses,
+                'rate': ((total_income - total_expenses) / total_income * 100) if total_income > 0 else 0
+            }
+
+            if len(expense_df) > 0 and 'Category' in expense_df.columns:
+                analysis['top_expense_categories'] = (
+                    expense_df.groupby('Category')['Amount'].sum()
+                    .sort_values(ascending=False).head(5).to_dict()
+                )
+            return analysis
+        except Exception as e:
+            print(f"Error analyzing financial data: {e}")
+            return {}
+
+    def _format_financial_summary(self) -> str:
+        if not self.financial_analysis:
+            return "No financial data available."
+        a = self.financial_analysis
+        summary = (
+            f"FINANCIAL SNAPSHOT\n"
+            f"Period: {a.get('date_range', {}).get('start', 'N/A')} to {a.get('date_range', {}).get('end', 'N/A')}\n"
+            f"Transactions: {a.get('total_transactions', 0)}\n"
+            f"Income: ${a.get('income', {}).get('total', 0):,.2f} ({a.get('income', {}).get('transactions', 0)} transactions)\n"
+            f"Expenses: ${a.get('expenses', {}).get('total', 0):,.2f} ({a.get('expenses', {}).get('transactions', 0)} transactions)\n"
+            f"Net savings: ${a.get('savings', {}).get('total', 0):,.2f} (rate {a.get('savings', {}).get('rate', 0):.1f}%)\n"
+        )
+        if 'top_expense_categories' in a:
+            summary += "Top expense categories:\n"
+            for cat, amt in a['top_expense_categories'].items():
+                summary += f"- {cat}: ${amt:,.2f}\n"
+        return summary
+
+    # ── retrieval ────────────────────────────────────────────────────────
