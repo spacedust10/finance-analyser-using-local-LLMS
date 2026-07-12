@@ -261,3 +261,101 @@ class RAGFinanceChat:
             return None
 
     # ── responses ────────────────────────────────────────────────────────
+
+    def get_response(self, user_question: str) -> str:
+        try:
+            self.chat_history.append({"role": "user", "content": user_question})
+            query_type = self._detect_query_type(user_question)
+            if query_type == 'web_search':
+                response = self._handle_web_query(user_question)
+            elif query_type == 'personal_data':
+                response = self._handle_data_query(user_question)
+            else:
+                response = self._handle_general_query(user_question)
+            self.chat_history.append({"role": "assistant", "content": response})
+            self.chat_history = self.chat_history[-20:]
+            return response
+        except Exception as e:
+            error = f"I hit an error: {e}\n\nIs Ollama running with model '{self.model_name}'?"
+            self.chat_history.append({"role": "assistant", "content": error})
+            return error
+
+    def _get_chat_context(self, max_messages: int = 6) -> str:
+        recent = self.chat_history[-(max_messages + 1):-1] if len(self.chat_history) > 1 else []
+        if not recent:
+            return ""
+        context = "\n\nRECENT CONVERSATION:\n"
+        for msg in recent:
+            role = "User" if msg["role"] == "user" else "Assistant"
+            content = msg["content"][:200]
+            context += f"{role}: {content}\n"
+        return context
+
+    def _invoke(self, template: str, **kwargs) -> str:
+        prompt = ChatPromptTemplate.from_template(template)
+        return self.llm.invoke(prompt.format(**kwargs)).content
+
+    def _handle_data_query(self, question: str) -> str:
+        if self.financial_data is None or self.financial_data.empty:
+            return "Please upload your financial data first to get personalized insights."
+        return self._invoke(
+            """You are the user's personal financial analyst, working over their real data.
+
+{chat_context}
+
+{data_context}
+
+{transaction_context}
+
+{document_context}
+
+USER QUESTION: {question}
+
+RULES:
+- Answer ONLY from the data above; if it isn't there, say so
+- """ + ANALYST_STYLE + """
+
+Answer:""",
+            chat_context=self._get_chat_context(),
+            data_context=self._format_financial_summary(),
+            transaction_context=self._semantic_search_transactions(question),
+            document_context=self._search_documents(question),
+            question=question,
+        )
+
+    def _handle_web_query(self, question: str) -> str:
+        web_context = self._search_web(question)
+        if not web_context:
+            return "I couldn't fetch live data from the web right now. Try again in a moment."
+        return self._invoke(
+            """You are a financial assistant with live web data.
+
+{chat_context}
+
+{web_context}
+
+USER QUESTION: {question}
+
+""" + ANALYST_STYLE + """
+
+Answer:""",
+            chat_context=self._get_chat_context(), web_context=web_context, question=question,
+        )
+
+    def _handle_general_query(self, question: str) -> str:
+        return self._invoke(
+            """You are a knowledgeable financial advisor.
+
+{chat_context}
+
+{document_context}
+
+USER QUESTION: {question}
+
+""" + ANALYST_STYLE + """
+
+Answer:""",
+            chat_context=self._get_chat_context(),
+            document_context=self._search_documents(question),
+            question=question,
+        )
